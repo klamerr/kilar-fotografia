@@ -28,7 +28,7 @@ def session_edit_photos(request, id):
     session = get_object_or_404(Session, id=id)
     photos = session.photos.all().order_by("-id")
 
-    # Obsługa zapisu danych sesji
+    # Zapis danych sesji
     if request.method == "POST" and "save_session" in request.POST:
         session.name = request.POST.get("name")
         session.description = request.POST.get("description", "")
@@ -58,7 +58,10 @@ def session_photos(request, id):
 def session_photos_upload(request, id):
     session = get_object_or_404(Session, id=id)
     if request.method == "POST":
-        for f in request.FILES.getlist("images"):
+        files = request.FILES.getlist("images")
+        if not files:
+            return HttpResponseBadRequest("Nie przesłano plików")
+        for f in files:
             Photo.objects.create(session=session, image=f)
         photos = session.photos.all().order_by("-id")
         return render(request, "adminpanel/partials/photo_grid.html", {"photos": photos})
