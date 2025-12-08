@@ -1,11 +1,13 @@
 # fotoapp/views.py
 
+import os
+import zipfile
+import stripe
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import FileResponse, Http404, HttpResponseForbidden, JsonResponse
 from django.views.decorators.http import require_POST
 from django.conf import settings
 from django.urls import reverse
-import os
 
 from .models.session import Session
 from .models.photo import Photo
@@ -17,6 +19,12 @@ from .cart import (
     _cart as get_cart
 )
 
+# Konfiguracja Stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
+
+# ===============================
+#         STRONY GŁÓWNE
+# ===============================
 
 def homepage(request):
     return render(request, 'fotoapp/homepage.html')
@@ -43,11 +51,13 @@ def check_password(request):
     return redirect('home')
 
 
+# ===============================
+#            GALERIA
+# ===============================
+
 def gallery_view(request, access_token):
     """
     Widok galerii zdjęć dla użytkownika z unikalnym tokenem dostępu.
-    Ustawia flagę 'gallery_access' w sesji użytkownika.
-    Dla każdego zdjęcia generuje zaszyfrowany token ścieżki (do bezpiecznego serwowania).
     """
     session = get_object_or_404(Session, access_token=access_token)
     photos = session.photos.all()
@@ -59,17 +69,18 @@ def gallery_view(request, access_token):
 
 def serve_encrypted_image(request, token):
     """
-    Serwuje obraz po zaszyfrowanej ścieżce, tylko z widoku galerii i jako <img>.
+    Serwuje obraz po zaszyfrowanej ścieżce, tylko z widoku galerii.
     """
     try:
         referer = request.META.get('HTTP_REFERER', '')
         sec_fetch_dest = request.META.get('HTTP_SEC_FETCH_DEST', '')
+        
         if not referer or '/gallery/' not in referer:
-            return HttpResponseForbidden("Dostęp zabroniony. Brak sesji.")
+            pass 
+            
         if not request.session.get('gallery_access'):
             return HttpResponseForbidden("Dostęp zabroniony. Brak sesji.")
-        if sec_fetch_dest != 'image':
-            return HttpResponseForbidden("Dostęp zabroniony. Brak sesji.")
+            
         path = decrypt_path(token)
         full_path = os.path.join(settings.MEDIA_ROOT, path)
         if not os.path.isfile(full_path):
@@ -80,14 +91,11 @@ def serve_encrypted_image(request, token):
 
 
 # ===============================
-#             KOSZYK
+#         API KOSZYKA
 # ===============================
 
 @require_POST
 def api_cart_add(request, photo_id: int):
-    """
-    Dodaje 1 szt. zdjęcia do koszyka (sesja). Zwraca JSON z aktualnym licznikiem.
-    """
     try:
         p = Photo.objects.get(pk=photo_id)
     except Photo.DoesNotExist:
@@ -99,9 +107,6 @@ def api_cart_add(request, photo_id: int):
 
 @require_POST
 def api_cart_remove(request, photo_id: int):
-    """
-    Usuwa 1 szt. zdjęcia z koszyka (sesja). Zwraca JSON z aktualnym licznikiem.
-    """
     try:
         p = Photo.objects.get(pk=photo_id)
     except Photo.DoesNotExist:
@@ -113,26 +118,14 @@ def api_cart_remove(request, photo_id: int):
 
 @require_POST
 def api_cart_delete(request, photo_id: int):
-    """
-    Usuwa CAŁĄ pozycję z koszyka (zeroje qty). Do użycia w mini-koszyku przy przycisku „Usuń”.
-    """
-    cart = get_cart(request)  # dict w sesji
+    cart = get_cart(request)
     cart.pop(str(photo_id), None)
     request.session.modified = True
     return JsonResponse({"ok": True, "count": cart_count(request)})
 
 
 def api_cart_summary(request):
-    """
-    Zwraca JSON z zawartością koszyka (mini-koszyk):
-    {
-      "ok": true,
-      "items": [{"id":1,"qty":1,"price":"49.99","line_total":"49.99","thumb":"..."}],
-      "total":"149.97",
-      "count":3
-    }
-    """
-    cart = get_cart(request)  # np. {'12': {'qty': 2, 'price': '49.99'}, ...}
+    cart = get_cart(request)
     if not cart:
         return JsonResponse({"ok": True, "items": [], "total": "0.00", "count": 0})
 
@@ -175,7 +168,116 @@ def api_cart_summary(request):
 
 
 def cart_view(request):
-    """
-    (Opcjonalny fallback) Prosty widok koszyka – można go zachować, choć mini-koszyk działa w modalu.
-    """
     return render(request, "cart/view.html", {"cart": get_cart(request)})
+
+
+# ===============================
+#      PŁATNOŚCI I ZIP
+# ===============================
+
+def create_checkout_session(request):
+    """
+    Tworzy sesję płatności w Stripe na podstawie zawartości koszyka.
+    """
+    cart = get_cart(request)
+    if not cart:
+        return redirect('home')
+
+    
+    domain = request.build_absolute_uri('/')[:-1] 
+
+    line_items = []
+    
+    # pobieranie id zdjęć z koszyka
+    ids = [int(pid) for pid in cart.keys()]
+    photos = Photo.objects.filter(id__in=ids)
+    photos_map = {p.id: p for p in photos}
+
+    for pid_str, entry in cart.items():
+        pid = int(pid_str)
+        photo = photos_map.get(pid)
+        if not photo:
+            continue
+            
+        # CENA W GROSZACH!!!! WAZNE
+        unit_amount = int(float(entry.get('price', 0)) * 100)
+        
+        line_items.append({
+            'price_data': {
+                'currency': 'pln',
+                'product_data': {
+                    'name': f'Zdjęcie #{photo.id}',
+                    # Opcjonalnie: 'images': [absolute_url_to_image],
+                },
+                'unit_amount': unit_amount,
+            },
+            'quantity': 1, # Zawsze 1 sztuka zdjęcia
+        })
+
+    if not line_items:
+        return redirect('home')
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card', 'blik'],
+            line_items=line_items,
+            mode='payment',
+            success_url=domain + reverse('payment_success'),
+            cancel_url=domain + reverse('home'), # Tutaj możesz dać powrót do galerii
+        )
+        return redirect(checkout_session.url, code=303)
+    except Exception as e:
+        return JsonResponse({'error': str(e)})
+
+
+def payment_success(request):
+    """
+    Obsługuje powrót po udanej płatności:
+    1. Pobiera zdjęcia z koszyka.
+    2. Pakuje je do ZIP.
+    3. Czyści koszyk.
+    4. Wyświetla stronę sukcesu z linkiem do pobrania.
+    """
+    cart = get_cart(request)
+    if not cart:
+        # Zabezpieczenie: jeśli ktoś odświeży stronę po wyczyszczeniu koszyka
+        return render(request, 'fotoapp/homepage.html', {'error': 'Sesja wygasła lub koszyk jest pusty.'})
+
+    ids = [int(pid) for pid in cart.keys()]
+    photos = Photo.objects.filter(id__in=ids)
+
+    if not photos.exists():
+        return redirect('home')
+
+    zip_dir = os.path.join(settings.MEDIA_ROOT, 'zips')
+    if not os.path.exists(zip_dir):
+        os.makedirs(zip_dir)
+
+    # nazwa pliku na podstawie sesji
+    session_key = request.session.session_key or 'unknown'
+    zip_filename = f"zamowienie_{session_key[:8]}.zip"
+    zip_filepath = os.path.join(zip_dir, zip_filename)
+    zip_url = f"{settings.MEDIA_URL}zips/{zip_filename}"
+
+    # zipowanie
+    try:
+        with zipfile.ZipFile(zip_filepath, 'w') as zip_file:
+            for photo in photos:
+                # Ścieżka do ORYGINAŁU (bez znaku wodnego)
+                original_path = photo.image.path 
+                if os.path.exists(original_path):
+                    zip_file.write(original_path, arcname=os.path.basename(original_path))
+    except Exception as e:
+        print(f"Błąd tworzenia ZIP: {e}")
+        return render(request, 'fotoapp/homepage.html', {'error': 'Wystąpił błąd podczas generowania plików.'})
+
+
+    request.session['cart'] = {}
+    request.session.modified = True
+
+    # sukces
+    context = {
+        'zip_url': zip_url,
+        'count': photos.count()
+    }
+    return render(request, 'fotoapp/success.html', context)

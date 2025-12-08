@@ -1,0 +1,77 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Dziękujemy za zamówienie | Kilar Fotografia</title>
+    <link rel="stylesheet" href="{% static 'css/gallery.css' %}">
+    <style>
+        body {
+            font-family: 'Helvetica Neue', sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .success-container {
+            background: white;
+            padding: 50px;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+        .icon-check {
+            font-size: 80px;
+            color: #27ae60;
+            margin-bottom: 20px;
+        }
+        h1 { margin: 0 0 15px; color: #333; }
+        p { color: #666; line-height: 1.6; margin-bottom: 30px; }
+        
+        .btn-download {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background 0.3s;
+            margin-bottom: 15px;
+        }
+        .btn-download:hover { background-color: #2980b9; }
+        
+        .btn-home {
+            display: block;
+            color: #888;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .btn-home:hover { color: #555; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div class="success-container">
+        <div class="icon-check">✓</div>
+        <h1>Płatność przyjęta!</h1>
+        <p>
+            Dziękujemy za zakup zdjęć. Twoje zamówienie zostało przetworzone pomyślnie.
+            <br>Możesz pobrać swoje zdjęcia (bez znaków wodnych) klikając poniżej:
+        </p>
+
+        {% if zip_url %}
+            <a href="{{ zip_url }}" class="btn-download">POBIERZ ZDJĘCIA (.ZIP)</a>
+        {% else %}
+            <p style="color:red">Wystąpił problem z wygenerowaniem pliku. Skontaktuj się z administratorem.</p>
+        {% endif %}
+
+        <a href="{% url 'home' %}" class="btn-home">Wróć na stronę główną</a>
+    </div>
+
+</body>
+</html>

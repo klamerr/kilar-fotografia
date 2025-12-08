@@ -12,7 +12,9 @@
 
   <header id="mainHeader">
     <div class="logo-left">
-      <img src="{% static 'images/logo.png' %}" alt="Logo Kilar Fotografia" />
+      <a href="{% url 'home' %}" title="Wróć na stronę główną">
+        <img src="{% static 'images/logo.png' %}" alt="Logo Kilar Fotografia" />
+      </a>
     </div>
 
     <div class="cart-header">
@@ -107,14 +109,14 @@
           });
         }
 
-        // Otwieranie/zamykanie mini-koszyka
+        // zamykanie/otwieranie koszyka
         function openMiniCart(){ backdrop.style.display='block'; panel.style.display='flex'; loadMiniCart(); }
         function closeMiniCart(){ backdrop.style.display='none'; panel.style.display='none'; }
         on(btnOpen, 'click', openMiniCart);
         on(backdrop, 'click', closeMiniCart);
         on(btnClose, 'click', closeMiniCart);
 
-        // Usuwanie z mini-koszyka (delegacja)
+        // usuwanie pozycji z koszyka 
         on(bodyEl, 'click', async (e)=>{
           const btn = e.target.closest('.mc-remove');
           if(!btn) return;
@@ -165,7 +167,6 @@
             totalEl.textContent = data.total || '0.00';
             if(headerCountEl && typeof data.count!=='undefined'){ headerCountEl.textContent = data.count; }
 
-            // kluczowe: pełna synchronizacja galerii
             syncGalleryWithCart(idsInCart);
 
           }catch(err){
@@ -175,10 +176,10 @@
           }
         }
 
-        // „Przejdź do płatności” – placeholder
+        
         on(document.getElementById('checkoutBtn'), 'click', ()=>{
-          alert('Tutaj podłączymy przekierowanie do Przelewy24 (checkout_start).');
-        });
+        window.location.href = "/checkout/";  // checkout stripe
+      });
 
         // Zaznaczanie zdjęć (dodawanie/usuwanie)
         on(galleryGrid, 'click', async (e)=>{

@@ -147,16 +147,16 @@ TEMPLATES[0]["OPTIONS"]["context_processors"] += [
 
 
 
-# Płatności
-STRIPE_PUBLIC_KEY = 'pk_test_...' # Twój klucz publiczny ze Stripe Dashboard
-STRIPE_SECRET_KEY = 'sk_test_...' # Twój klucz prywatny ze Stripe Dashboard
+# demo stripe'a
+STRIPE_PUBLIC_KEY = 'pk_test_51SbkNjPEDmDYtmB9toFXHnpVkBcYN8OVMUGxMWH0erbuiMpdZyhmvZ53G4IR7sUyNOW7pTkAfMsVKilh2tj7zuSe00IxaRoOLD' # Twój klucz publiczny ze Stripe Dashboard
+STRIPE_SECRET_KEY = 'sk_test_51SbkNjPEDmDYtmB9y4gpQV0SoRfArbPvUE54ZoHdqaknDrw2ZK71C11KyxgQsXZLdDPI3O5sPIgYcSfzJzL0BpNV00ntfEgsAi' # Twój klucz prywatny ze Stripe Dashboard
 PRICE_PER_PHOTO = 25.00  # Cena za jedno zdjęcie (PLN)
 
-# Email (przykładowa konfiguracja dla Gmail, dostosuj do swojego hostingu)
+# Email - placeholder na potrzeby projektu
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'kilarprojekt@gmail.com'
-EMAIL_HOST_PASSWORD = 'Kilarprojekt1!' # Nie zwykłe hasło, tylko "App Password"
+EMAIL_HOST_PASSWORD = 'Kilarprojekt1!' 
 DEFAULT_FROM_EMAIL = 'Kilar Fotografia <kilarprojekt@gmail.com>'

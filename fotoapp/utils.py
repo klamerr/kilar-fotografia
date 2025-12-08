@@ -6,7 +6,7 @@ from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont
 
 # ==========================================
-# CZĘŚĆ 1: SZYFROWANIE ŚCIEŻEK (Przywrócone)
+# CZĘŚĆ 1: SZYFROWANIE ŚCIEŻEK
 # ==========================================
 
 def encrypt_path(path):
@@ -23,7 +23,7 @@ def decrypt_path(encoded_path):
 
 
 # ==========================================
-# CZĘŚĆ 2: WATERMARK I ZAPIS (Nowe)
+# WATERMARK + ZAPIS!!
 # ==========================================
 
 def save_photos(uploaded_file, filename):
@@ -66,15 +66,14 @@ def save_photos(uploaded_file, filename):
         # 4. Tworzymy WATERMARK
         wm_image = image.copy().convert("RGBA")
         
-        # Warstwa tekstowa
         txt_layer = Image.new("RGBA", wm_image.size, (255, 255, 255, 0))
         draw = ImageDraw.Draw(txt_layer)
         
-        # Tekst i font
+        # Tekst i font (w przypadku braku logo)
         text = "FOTOAPP DEMO"
         font = ImageFont.load_default() 
         
-        # Obliczanie pozycji (metoda bezpieczna dla wszystkich wersji Pillow)
+        # Obliczanie pozycji
         width, height = wm_image.size
         try:
             bbox = draw.textbbox((0, 0), text, font=font)
@@ -86,10 +85,8 @@ def save_photos(uploaded_file, filename):
         x = (width - text_width) / 2
         y = (height - text_height) / 2
 
-        # Rysujemy tekst
         draw.text((x, y), text, fill=(255, 255, 255, 128), font=font)
         
-        # Łączymy warstwy i konwertujemy na RGB
         final_wm = Image.alpha_composite(wm_image, txt_layer)
         final_wm = final_wm.convert("RGB")
 
