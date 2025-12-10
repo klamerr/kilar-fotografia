@@ -108,6 +108,24 @@ def session_photos_upload(request, id):
     return HttpResponseBadRequest("Invalid request")
 
 @login_required
+def session_set_price_all(request, session_id):
+    session = get_object_or_404(Session, id=session_id)
+
+    if request.method == "POST":
+        new_price = request.POST.get("price")
+
+        try:
+            price_val = float(new_price)
+        except:
+            return JsonResponse({"error": "Invalid price"}, status=400)
+
+        Photo.objects.filter(session=session).update(price=price_val)
+
+        return JsonResponse({"success": True, "price": price_val})
+
+    return JsonResponse({"error": "Invalid method"}, status=400)
+
+@login_required
 def set_cover_photo(request, photo_id):
     photo = get_object_or_404(Photo, id=photo_id)
     session = photo.session

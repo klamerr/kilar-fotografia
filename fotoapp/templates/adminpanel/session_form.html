@@ -37,7 +37,16 @@
     <p class="text-muted">Przeciągnij i upuść zdjęcia tutaj lub kliknij, aby wybrać</p>
     <button type="submit" class="btn btn-primary mt-2">Zapisz zdjęcia</button>
 </form>
+<!-- USTAWIANIE CENY WSZYSTKICH ZDJĘĆ -->
+<div class="card p-3 mb-4">
+    <h5>Ustaw cenę dla wszystkich zdjęć</h5>
 
+    <div class="d-flex align-items-center">
+        <input type="number" step="0.01" id="mass-price-input" class="form-control w-25 me-3">
+        <button class="btn btn-primary" id="mass-price-btn">Ustaw</button>
+        <span class="text-success ms-3 d-none" id="mass-price-status">✔ Zaktualizowano</span>
+    </div>
+</div>
 <!-- GRID ZDJĘĆ -->
 <div id="photo-grid">
     {% include "adminpanel/partials/photo_grid.html" %}
@@ -112,7 +121,7 @@ document.getElementById('photo-grid').addEventListener('click', function(e) {
     }
 });
 
-// --- AJAX dla ustawiania cen ---
+// --- AJAX dla ustawiania ceny pojedynczego zdjęcia ---
 document.querySelectorAll(".save-price-btn").forEach(btn => {
     btn.addEventListener("click", () => {
 
@@ -135,6 +144,30 @@ document.querySelectorAll(".save-price-btn").forEach(btn => {
                 setTimeout(() => status.classList.add("d-none"), 1500);
             }
         });
+    });
+});
+// --- AJAX dla ustawiania ceny wszystkich zdjęć ---
+document.getElementById("mass-price-btn").addEventListener("click", () => {
+    const price = document.getElementById("mass-price-input").value;
+    const status = document.getElementById("mass-price-status");
+
+    const formData = new FormData();
+    formData.append("price", price);
+    formData.append("csrfmiddlewaretoken", "{{ csrf_token }}");
+
+    fetch(`/admin/sessions/{{ session.id }}/set-price-all/`, {
+        method: "POST",
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+
+            document.querySelectorAll(".price-input").forEach(inp => inp.value = price);
+
+            status.classList.remove("d-none");
+            setTimeout(() => status.classList.add("d-none"), 1500);
+        }
     });
 });
 </script>
